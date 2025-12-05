@@ -1,107 +1,148 @@
-name: Overnight Hackathon Submission
-description: Click Here to Submit Your Hackathon Project
-title: "[Project]: "
-labels: ["submission", "needreview"]
-body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for participating in the hackathon and creating your submission!
-  - type: input
-    id: name
-    attributes:
-      label: Name
-      description: Enter your full name
-      placeholder: Lipi Bujarbarua
-    validations:
-      required: true
-  - type: input
-    id: email
-    attributes:
-      label: Email Address
-      description: Enter your email address
-      placeholder: lipibujarbarua.cs25@rvce.edu.in
-    validations:
-      required: true
-  - type: input
-    id: team-emails
-    attributes:
-      label: Email Addresses of Team Members
-      description: Enter the email addresses of you team members separated by commas (if you have any)
-      placeholder: psnikhitha.cs25@rvce.edu.in, pochaomshivani.ci25@rvce.edu.in, kritikaagarwala.cs25@rvce.edu.in
-    validations:
-      required: false
-  - type: textarea
-    id: description
-    attributes:
-      label: Project Description
-      description: What have you built during the hackathon?
-      placeholder: The project I created is a web application which helps the students to understand the topics in their regional languages.
-    validations:
-      required: true
-  - type: textarea
-    id: inspiration
-    attributes:
-      label: Key Features
-      description: describe the key features of your project which makes it unique from the solutions that already exist in the market
-      placeholder: It not only translates the topics given , but also gives the basic understanding required for the students 
-    validations:
-      required: true
-  - type: textarea
-    id: tech-stack
-    attributes:
-      label: Tech Stack
-      description: How have you built this project? Mention the technologies/methods/platforms you used to build your project
-      placeholder: The technologies I used...
-    validations:
-      required: true
-  - type: dropdown
-    id: problem-statement
-    attributes:
-      label: Problem Statement
-      description: Select the specific Problem Statement for your submission from the list below
-      placeholder: "EdTech: 9. Vernacular STEM Learning Gap Analysis"
-    validations:
-      required: true 
+import streamlit as st
+import google.generativeai as genai
+from gtts import gTTS
+import os
 
-    validations:
-      required: true
-  - type: input
-    id: project-link
-    attributes:
-      label: Project Repo
-      description: Share a public repo link of your project
-      placeholder: https://github.com/github-id/project-repo
-    validations:
-      required: true
-  - type: input
-    id: ppt-link
-    attributes:
-      label: Presentation (PPT) Link
-      description: Share a publicly visible presentation (PPT) link of your project
-      placeholder: https://docs.google.com/presentation/d/your-presentation-id
-    validations:
-      required: true
-  - type: input
-    id: demo-link
-    attributes:
-      label: Demo Video/Photos
-      description: Share a publicly visible demo video/photos link of your project
-      placeholder: https://www.youtube.com/watch?v=9IBaX1avYWc
-    validations:
-      required: false
-  - type: textarea
-    id: anything-else
-    attributes:
-      label: Anything Else?
-      description: Any other feedback, queries or information, you would like to share with us?
-    validations:
-      required: false
-  - type: checkboxes
-    id: terms
-    attributes:
-      label: Rules and Code of Conduct
-      description: By submitting this issue, you agree to follow our Rules and Code of Conduct.
-      options:
-        - label: I agree to follow this hackathon's Rules and Code of Conduct
-          required: true
+# =========================================
+# CONFIGURATION
+# =========================================
+
+# 🔑 Put your real Gemini API key here:
+GOOGLE_API_KEY = "GEMINI_API_KEY".strip()
+
+# Streamlit page config
+st.set_page_config(page_title="Gramin Vigyan", page_icon="🌾")
+
+st.title("🌾 Gramin Vigyan (Village Science)")
+st.subheader("Learn Science in Your Language, With Your Examples.")
+
+# Validate and configure the API key
+if not GOOGLE_API_KEY or GOOGLE_API_KEY == "GEMINI_API_KEY":
+    st.warning(
+        "⚠️ Google API key is not set.\n\n"
+        "Please open the code and replace "
+        "`GEMINI_API_KEY` with your actual Gemini API key."
+    )
+    genai_configured = False
+else:
+    try:
+        genai.configure(api_key=GOOGLE_API_KEY)
+        genai_configured = True
+    except Exception as e:
+        st.error(f"Failed to configure Google Generative AI: {e}")
+        genai_configured = False
+
+
+# =========================================
+# ANALOGY ENGINE
+# =========================================
+def get_analogy(concept: str, language_name: str) -> str:
+    """
+    Call Gemini to generate an explanation with a rural Indian analogy.
+    Raises RuntimeError with a clear message instead of raw exceptions.
+    """
+    if not genai_configured:
+        raise RuntimeError("Google Generative AI is not configured correctly.")
+
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+    except Exception as e:
+        raise RuntimeError(f"Could not load Gemini model: {e}")
+
+    prompt = f"""
+    Explain the scientific concept '{concept}' to a rural Indian student.
+    1. First, give a 1-sentence standard definition.
+    2. Then, explain it using a culturally relevant analogy from an Indian village or daily life
+       (like farming, cricket, festivals, or traffic).
+    3. Finally, explain it in the language: {language_name}.
+    Output ONLY the explanation in {language_name}.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+    except Exception as e:
+        raise RuntimeError(f"Error while generating explanation from the AI model: {e}")
+
+    # Safely handle empty or unexpected responses
+    text = getattr(response, "text", None)
+    if not text:
+        # Fallback for older response formats
+        try:
+            parts = response.candidates[0].content.parts
+            text = "".join(p.text for p in parts if hasattr(p, "text"))
+        except Exception:
+            text = None
+
+    if not text:
+        raise RuntimeError("The AI model returned an empty response. Try again.")
+
+    return text
+
+
+# =========================================
+# FRONTEND
+# =========================================
+
+# 1. Inputs
+concept = st.text_input("Enter a Science Topic (e.g., Gravity, Photosynthesis):")
+language = st.selectbox(
+    "Select Your Language",
+    ["Hindi", "Tamil", "Telugu", "Bengali", "Marathi"],
+    index=0,
+)
+
+# 2. The Magic Button
+if st.button("Explain to Me"):
+    if not concept.strip():
+        st.error("Please enter a topic first!")
+    elif not genai_configured:
+        st.error(
+            "Google API key is missing or invalid. "
+            "Please configure it correctly and reload the app."
+        )
+    else:
+        with st.spinner("Asking the Village Teacher..."):
+            try:
+                # Call the AI
+                explanation = get_analogy(concept.strip(), language)
+
+                # Show Text
+                st.success("Here is your explanation:")
+                st.markdown(explanation)
+
+                # Generate Audio (accessibility)
+                lang_map = {
+                    "Hindi": "hi",
+                    "Tamil": "ta",
+                    "Telugu": "te",
+                    "Bengali": "bn",
+                    "Marathi": "mr",
+                }
+
+                lang_code = lang_map.get(language)
+                if not lang_code:
+                    st.warning("Audio language code not found for this language.")
+                else:
+                    try:
+                        tts = gTTS(text=explanation, lang=lang_code, slow=False)
+                        audio_file = "explanation.mp3"
+                        tts.save(audio_file)
+                        st.audio(audio_file)
+                    except Exception as e:
+                        st.warning(f"Audio generation failed: {e}")
+
+            except RuntimeError as e:
+                st.error(str(e))
+            except Exception as e:
+                st.error(f"An unexpected error occurred: {e}")
+
+
+# =========================================
+# SIDEBAR
+# =========================================
+st.sidebar.title("About")
+st.sidebar.info(
+    "Bridging the vernacular gap in STEM education using GenAI context localization.\n\n"
+    "This app explains science topics using analogies from Indian village life and "
+    "translates them into regional languages with audio support."
+)
