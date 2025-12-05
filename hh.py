@@ -8,7 +8,7 @@ import os
 # =========================================
 
 # 🔑 Put your real Gemini API key here:
-GOOGLE_API_KEY = "AIzaSyBTDwIzEwJY3OhdBEOuBRfTmHiqaZZgaWE".strip()
+GOOGLE_API_KEY = "GEMINI_API_KEY".strip()
 
 # Streamlit page config
 st.set_page_config(page_title="Gramin Vigyan", page_icon="🌾")
@@ -17,11 +17,11 @@ st.title("🌾 Gramin Vigyan (Village Science)")
 st.subheader("Learn Science in Your Language, With Your Examples.")
 
 # Validate and configure the API key
-if not GOOGLE_API_KEY or GOOGLE_API_KEY == "AIzaSyAvgI4218AZWF8vDKBJjYrshAmKJYgMRl0":
+if not GOOGLE_API_KEY or GOOGLE_API_KEY == "GEMINI_API_KEY":
     st.warning(
         "⚠️ Google API key is not set.\n\n"
         "Please open the code and replace "
-        "`AIzaSyAvgI4218AZWF8vDKBJjYrshAmKJYgMRl0` with your actual Gemini API key."
+        "`GEMINI_API_KEY` with your actual Gemini API key."
     )
     genai_configured = False
 else:
